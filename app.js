@@ -8,7 +8,7 @@ const order = require("./routes/order");
 const app = express();
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "https://itcp318React-frontend.onrender.com",
+    origin: process.env.CLIENT_URL || "https://itcp318react-frontend.onrender.com",
     credentials: true,
   }),
 );
