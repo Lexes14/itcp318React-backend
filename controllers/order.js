@@ -6,42 +6,42 @@ const sendEmail = require("../utils/sendEmail");
 const receiptPdf = require("../utils/receiptPdf");
 
 const notifyOrder = async (order, user, subject) => {
-  try {
-    const receipt = await receiptPdf(order, user);
-    const money = (value) =>
-      `PHP ${Number(value || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
-    const products = order.orderItems
-      .map(
-        (item) =>
-          `${item.name} x ${item.quantity} - ${money(Number(item.price || 0) * Number(item.quantity || 0))}`,
-      )
-      .join("\n");
-    const message = [
-      `Order #${order._id} details`,
-      "",
-      "Products:",
-      products,
-      "",
-      `Subtotal: ${money(order.itemsPrice)}`,
-      `Grand total: ${money(order.totalPrice)}`,
-      "",
-      "A PDF receipt is attached to this email.",
-    ].join("\n");
-    await sendEmail({
-      email: user.email,
-      subject,
-      message,
-      attachments: [
-        {
-          filename: `receipt-${order._id}.pdf`,
-          content: receipt,
-          contentType: "application/pdf",
-        },
-      ],
-    });
-  } catch (error) {
-    console.error("Order email failed:", error.message);
+  if (!user?.email) {
+    console.error("Order email skipped: recipient email is not set");
+    return;
   }
+  const receipt = await receiptPdf(order, user);
+  const money = (value) =>
+    `PHP ${Number(value || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
+  const products = order.orderItems
+    .map(
+      (item) =>
+        `${item.name} x ${item.quantity} - ${money(Number(item.price || 0) * Number(item.quantity || 0))}`,
+    )
+    .join("\n");
+  const message = [
+    `Order #${order._id} details`,
+    "",
+    "Products:",
+    products,
+    "",
+    `Subtotal: ${money(order.itemsPrice)}`,
+    `Grand total: ${money(order.totalPrice)}`,
+    "",
+    "A PDF receipt is attached to this email.",
+  ].join("\n");
+  await sendEmail({
+    email: user.email,
+    subject,
+    message,
+    attachments: [
+      {
+        filename: `receipt-${order._id}.pdf`,
+        content: receipt,
+        contentType: "application/pdf",
+      },
+    ],
+  });
 };
 
 exports.newOrder = catchAsyncErrors(async (req, res, next) => {
@@ -93,7 +93,9 @@ exports.newOrder = catchAsyncErrors(async (req, res, next) => {
       }),
     ),
   );
-  await notifyOrder(order, req.user, "Order confirmation and receipt");
+  notifyOrder(order, req.user, "Order confirmation and receipt").catch((error) =>
+    console.error("Order email failed:", error.code, error.message),
+  );
   res.status(201).json({ success: true, order });
 });
 exports.myOrders = catchAsyncErrors(async (req, res) =>
@@ -139,10 +141,12 @@ exports.updateOrder = catchAsyncErrors(async (req, res, next) => {
   order.orderStatus = req.body.status;
   if (req.body.status === "Delivered") order.deliveredAt = Date.now();
   await order.save();
-  await notifyOrder(
+  notifyOrder(
     order,
     order.user,
     `Order #${order._id} status updated to ${order.orderStatus}`,
+  ).catch((error) =>
+    console.error("Order email failed:", error.code, error.message),
   );
   res.json({ success: true, order });
 });
