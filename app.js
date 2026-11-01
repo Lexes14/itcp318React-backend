@@ -6,9 +6,13 @@ const auth = require("./routes/auth");
 const product = require("./routes/product");
 const order = require("./routes/order");
 const app = express();
+app.set("trust proxy", 1);
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "https://itcp318react-frontend.onrender.com",
+    origin: (process.env.CLIENT_URL || "https://itcp318react-frontend.onrender.com").replace(
+      /\/+$/,
+      "",
+    ),
     credentials: true,
   }),
 );

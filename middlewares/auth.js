@@ -5,11 +5,14 @@ const catchAsyncErrors = require("../utils/catchAsyncErrors");
 
 exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
   const header = req.headers.authorization;
-  if (!header || !header.startsWith("Bearer "))
+  const token = header?.startsWith("Bearer ")
+    ? header.slice(7)
+    : req.cookies?.token;
+  if (!token)
     return next(new ErrorHandler("Please log in to access this resource", 401));
   let decoded;
   try {
-    decoded = await admin.auth().verifyIdToken(header.slice(7));
+    decoded = await admin.auth().verifyIdToken(token);
   } catch (error) {
     return next(new ErrorHandler("Invalid or expired token", 401));
   }

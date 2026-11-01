@@ -11,6 +11,11 @@ const profile = (user) => ({
   role: user.role,
 });
 exports.syncUser = catchAsyncErrors(async (req, res) => {
+  const header = req.headers.authorization;
+  const token = header?.startsWith("Bearer ")
+    ? header.slice(7)
+    : req.cookies?.token;
+  if (!token) throw new ErrorHandler("Authentication token is required", 401);
   const updates = {
     name:
       req.body.name ||
@@ -27,7 +32,18 @@ exports.syncUser = catchAsyncErrors(async (req, res) => {
     { $set: updates, $setOnInsert: { firebaseUid: req.firebaseUser.uid } },
     { new: true, upsert: true, runValidators: true },
   );
-  res.status(200).json({ success: true, user: profile(user) });
+  if (!user)
+    throw new ErrorHandler("Unable to create or load user profile", 500);
+  const expires = req.firebaseUser.exp
+    ? new Date(req.firebaseUser.exp * 1000)
+    : new Date(Date.now() + 60 * 60 * 1000);
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    expires,
+  });
+  res.status(200).json({ success: true, user: profile(user), token });
 });
 exports.getUserProfile = catchAsyncErrors(async (req, res) =>
   res.json({ success: true, user: req.user }),

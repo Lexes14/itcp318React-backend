@@ -9,8 +9,11 @@ const shutdown = (error) => {
 };
 connectDatabase()
   .then(() => {
-    server = app.listen(Number(process.env.PORT) || 4001, () =>
-      console.log(`Server running on port ${process.env.PORT || 4001}`),
+    if (!process.env.PORT) {
+      throw new Error("PORT environment variable is required");
+    }
+    server = app.listen(process.env.PORT, () =>
+      console.log(`Server running on port ${process.env.PORT}`),
     );
   })
   .catch(shutdown);

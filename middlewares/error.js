@@ -1,6 +1,8 @@
 const ErrorHandler = require("../utils/errorHandler");
 
 module.exports = (error, req, res, next) => {
+  console.error(error);
+  console.error(error.stack);
   let handled = error;
   if (error.name === "CastError")
     handled = new ErrorHandler("Resource not found", 404);
