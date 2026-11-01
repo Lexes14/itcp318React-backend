@@ -9,11 +9,10 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(
   cors({
-    origin: (process.env.CLIENT_URL || "https://itcp318react-frontend.onrender.com").replace(
-      /\/+$/,
-      "",
-    ),
+    origin: process.env.CLIENT_URL || "https://itcp318react-frontend.onrender.com",
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 app.use(express.json({ limit: "10mb" }));
@@ -25,5 +24,8 @@ app.get("/api/v1/health", (req, res) =>
 app.use("/api/v1", auth);
 app.use("/api/v1", product);
 app.use("/api/v1", order);
+app.use((req, res) =>
+  res.status(404).json({ success: false, message: "Route not found" }),
+);
 app.use(errorMiddleware);
 module.exports = app;
