@@ -5,6 +5,9 @@ const ErrorHandler = require("../utils/errorHandler");
 const sendEmail = require("../utils/sendEmail");
 const receiptPdf = require("../utils/receiptPdf");
 
+const logOrderEmailError = (error) =>
+  console.error("Order email failed:", error.code, error.message);
+
 const notifyOrder = async (order, user, subject) => {
   if (!user?.email) {
     console.error("Order email skipped: recipient email is not set");
@@ -93,8 +96,8 @@ exports.newOrder = catchAsyncErrors(async (req, res, next) => {
       }),
     ),
   );
-  notifyOrder(order, req.user, "Order confirmation and receipt").catch((error) =>
-    console.error("Order email failed:", error.code, error.message),
+  notifyOrder(order, req.user, "Order confirmation and receipt").catch(
+    logOrderEmailError,
   );
   res.status(201).json({ success: true, order });
 });
@@ -145,9 +148,7 @@ exports.updateOrder = catchAsyncErrors(async (req, res, next) => {
     order,
     order.user,
     `Order #${order._id} status updated to ${order.orderStatus}`,
-  ).catch((error) =>
-    console.error("Order email failed:", error.code, error.message),
-  );
+  ).catch(logOrderEmailError);
   res.json({ success: true, order });
 });
 exports.deleteOrder = catchAsyncErrors(async (req, res, next) => {
