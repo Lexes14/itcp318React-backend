@@ -3,6 +3,7 @@ const c = require("../controllers/auth");
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/auth");
 const upload = require("../utils/multer");
 const router = express.Router();
+router.post("/auth/logout", c.logout);
 router.post(
   "/users/sync",
   isAuthenticatedUser,

@@ -2,6 +2,13 @@ const User = require("../models/user");
 const catchAsyncErrors = require("../utils/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorHandler");
 const { uploadBuffer } = require("../utils/cloudinary");
+const {
+  AUTH_COOKIE_NAME,
+  LEGACY_AUTH_COOKIE_NAME,
+  getAuthCookieOptions,
+  getAuthCookieClearOptions,
+} = require("../config/authCookie");
+const { getAuthToken } = require("../utils/authToken");
 const profile = (user) => ({
   id: user._id,
   firebaseUid: user.firebaseUid,
@@ -11,10 +18,7 @@ const profile = (user) => ({
   role: user.role,
 });
 exports.syncUser = catchAsyncErrors(async (req, res) => {
-  const header = req.headers.authorization;
-  const token = header?.startsWith("Bearer ")
-    ? header.slice(7)
-    : req.cookies?.token;
+  const token = req.authToken || getAuthToken(req);
   if (!token) throw new ErrorHandler("Authentication token is required", 401);
   const updates = {
     name:
@@ -37,13 +41,8 @@ exports.syncUser = catchAsyncErrors(async (req, res) => {
   const expires = req.firebaseUser.exp
     ? new Date(req.firebaseUser.exp * 1000)
     : new Date(Date.now() + 60 * 60 * 1000);
-  res.cookie("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    expires,
-  });
-  res.status(200).json({ success: true, user: profile(user), token });
+  res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions({ expires }));
+  res.status(200).json({ success: true, user: profile(user) });
 });
 exports.getUserProfile = catchAsyncErrors(async (req, res) =>
   res.json({ success: true, user: req.user }),
@@ -91,4 +90,11 @@ exports.deleteUser = catchAsyncErrors(async (req, res, next) => {
   const user = await User.findByIdAndDelete(req.params.id);
   if (!user) return next(new ErrorHandler("User not found", 404));
   res.json({ success: true });
+});
+
+exports.logout = catchAsyncErrors(async (req, res) => {
+  const clearOptions = getAuthCookieClearOptions();
+  res.clearCookie(AUTH_COOKIE_NAME, clearOptions);
+  res.clearCookie(LEGACY_AUTH_COOKIE_NAME, clearOptions);
+  res.json({ success: true, message: "Logged out successfully" });
 });

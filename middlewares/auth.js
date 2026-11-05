@@ -2,12 +2,10 @@ const admin = require("../config/firebaseAdmin");
 const User = require("../models/user");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../utils/catchAsyncErrors");
+const { getAuthToken } = require("../utils/authToken");
 
 exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
-  const header = req.headers.authorization;
-  const token = header?.startsWith("Bearer ")
-    ? header.slice(7)
-    : req.cookies?.token;
+  const token = getAuthToken(req);
   if (!token)
     return next(new ErrorHandler("Please log in to access this resource", 401));
   let decoded;
@@ -18,6 +16,7 @@ exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
   }
   const user = await User.findOne({ firebaseUid: decoded.uid });
   req.firebaseUser = decoded;
+  req.authToken = token;
   if (!user && req.path !== "/users/sync")
     return next(new ErrorHandler("User profile is not synchronized", 401));
   req.user = user;
