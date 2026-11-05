@@ -156,21 +156,26 @@ module.exports = (order, customer) =>
       .fillColor(COLORS.ink)
       .text("Items", left, y);
     y += 22;
+    const productX = left + 12;
+    const totalX = right - 95;
+    const unitX = totalX - 8 - 95;
+    const quantityX = unitX - 8 - 42;
+    const productWidth = quantityX - productX - 12;
     document.roundedRect(left, y, contentWidth, 27, 5).fill(COLORS.navy);
     document
       .font("Helvetica-Bold")
       .fontSize(8)
       .fillColor(COLORS.white)
-      .text("PRODUCT", left + 12, y + 9)
-      .text("QTY", right - 158, y + 9, { width: 35, align: "center" })
-      .text("UNIT PRICE", right - 112, y + 9, { width: 65, align: "right" })
-      .text("TOTAL", right - 92, y + 9, { width: 80, align: "right" });
+      .text("PRODUCT", productX, y + 9, { width: productWidth })
+      .text("QTY", quantityX, y + 9, { width: 42, align: "center" })
+      .text("UNIT PRICE", unitX, y + 9, { width: 95, align: "right" })
+      .text("TOTAL", totalX, y + 9, { width: 95, align: "right" });
     y += 27;
 
     order.orderItems.forEach((item, index) => {
       const name = item.name || "Product";
       const lineTotal = Number(item.price || 0) * Number(item.quantity || 0);
-      const nameHeight = document.heightOfString(name, { width: right - left - 190 });
+      const nameHeight = document.heightOfString(name, { width: productWidth });
       const rowHeight = Math.max(34, nameHeight + 20);
       if (index % 2 === 0)
         document.rect(left, y, contentWidth, rowHeight).fill("#F8FAFC");
@@ -178,21 +183,21 @@ module.exports = (order, customer) =>
         .font("Helvetica")
         .fontSize(9)
         .fillColor(COLORS.ink)
-        .text(name, left + 12, y + 11, { width: right - left - 190 });
+        .text(name, productX, y + 11, { width: productWidth });
       document
         .font("Helvetica")
         .fontSize(9)
-        .text(String(item.quantity || 0), right - 158, y + 11, {
-          width: 35,
+        .text(String(item.quantity || 0), quantityX, y + 11, {
+          width: 42,
           align: "center",
         })
-        .text(formatMoney(item.price), right - 112, y + 11, {
-          width: 65,
+        .text(formatMoney(item.price), unitX, y + 11, {
+          width: 95,
           align: "right",
         })
         .font("Helvetica-Bold")
-        .text(formatMoney(lineTotal), right - 92, y + 11, {
-          width: 80,
+        .text(formatMoney(lineTotal), totalX, y + 11, {
+          width: 95,
           align: "right",
         });
       drawRule(document, y + rowHeight, left, contentWidth);
