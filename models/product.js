@@ -1,15 +1,24 @@
 const mongoose = require("mongoose");
 const productSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, unique: true },
-    brand: { type: String, required: true },
-    model: String,
-    description: { type: String, required: true },
+    name: { type: String, required: true, trim: true, maxlength: 120 },
+    slug: { type: String, required: true, unique: true, match: /^[a-z0-9]+(?:-[a-z0-9]+)*$/ },
+    brand: { type: String, required: true, trim: true, maxlength: 80 },
+    model: { type: String, trim: true, maxlength: 80 },
+    description: { type: String, required: true, trim: true, minlength: 10, maxlength: 2000 },
     price: { type: Number, required: true, min: 0 },
-    salePrice: { type: Number, min: 0 },
+    salePrice: {
+      type: Number,
+      min: 0,
+      validate: {
+        validator(value) {
+          return value === undefined || value <= this.price;
+        },
+        message: "Sale price cannot be greater than price",
+      },
+    },
     stock: { type: Number, required: true, min: 0, max: 100000 },
-    sku: { type: String, required: true, unique: true },
+    sku: { type: String, required: true, trim: true, maxlength: 60, unique: true },
     category: {
       type: String,
       enum: [

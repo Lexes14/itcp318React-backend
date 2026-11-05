@@ -5,6 +5,39 @@ const ErrorHandler = require("../utils/errorHandler");
 const APIFeatures = require("../utils/apiFeatures");
 const { uploadBuffer, deleteImage } = require("../utils/cloudinary");
 const { maskProfanity } = require("../utils/profanityFilter");
+const { validateImages, validationError, isPlainObject } = require("../utils/validation");
+const {
+  getUnexpectedProductFields,
+  validateProduct,
+} = require("../utils/productValidation");
+
+const parseProductBody = (body) => {
+  const input = { ...body };
+  if (typeof input.specs === "string") {
+    try {
+      input.specs = JSON.parse(input.specs);
+    } catch {
+      throw validationError({ specs: "Specs must be valid JSON" });
+    }
+  }
+  if (input.specs !== undefined && !isPlainObject(input.specs))
+    throw validationError({ specs: "Specs must be an object" });
+  const unknown = getUnexpectedProductFields(input);
+  if (unknown.length)
+    throw validationError(
+      Object.fromEntries(unknown.map((field) => [field, `${field} cannot be updated`])),
+    );
+  return input;
+};
+
+const validateProductRequest = (req, { partial = false, current } = {}) => {
+  const input = parseProductBody(req.body);
+  const value = validateProduct(input, { partial });
+  if (current) validateProduct({ ...current, ...input });
+  const imageErrors = validateImages(req.files || []);
+  if (Object.keys(imageErrors).length) throw validationError(imageErrors);
+  return value;
+};
 exports.getProducts = catchAsyncErrors(async (req, res) => {
   const resPerPage = 12;
   const base = new APIFeatures(Product.find(), req.query).search().filter();
@@ -27,6 +60,7 @@ exports.getProduct = catchAsyncErrors(async (req, res, next) => {
   res.json({ success: true, product });
 });
 exports.newProduct = catchAsyncErrors(async (req, res) => {
+  const productData = validateProductRequest(req);
   const images = await Promise.all(
     (req.files || []).map(async (file) => {
       const image = await uploadBuffer(
@@ -37,11 +71,7 @@ exports.newProduct = catchAsyncErrors(async (req, res) => {
     }),
   );
   const product = await Product.create({
-    ...req.body,
-    specs:
-      typeof req.body.specs === "string"
-        ? JSON.parse(req.body.specs)
-        : req.body.specs,
+    ...productData,
     images,
   });
   res.status(201).json({ success: true, product });
@@ -49,6 +79,10 @@ exports.newProduct = catchAsyncErrors(async (req, res) => {
 exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
   const product = await Product.findById(req.params.id);
   if (!product) return next(new ErrorHandler("Product not found", 404));
+  const productData = validateProductRequest(req, {
+    partial: true,
+    current: product.toObject(),
+  });
   const images = await Promise.all(
     (req.files || []).map(async (file) => {
       const image = await uploadBuffer(
@@ -58,13 +92,7 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
       return { public_id: image.public_id, url: image.secure_url };
     }),
   );
-  const updates = {
-    ...req.body,
-    specs:
-      typeof req.body.specs === "string"
-        ? JSON.parse(req.body.specs)
-        : req.body.specs,
-  };
+  const updates = productData;
   if (images.length) updates.images = [...product.images, ...images];
   Object.assign(product, updates);
   await product.save();

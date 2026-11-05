@@ -9,6 +9,7 @@ const {
   getAuthCookieClearOptions,
 } = require("../config/authCookie");
 const { getAuthToken } = require("../utils/authToken");
+const { validateImages, validationError } = require("../utils/validation");
 const profile = (user) => ({
   id: user._id,
   firebaseUid: user.firebaseUid,
@@ -48,7 +49,28 @@ exports.getUserProfile = catchAsyncErrors(async (req, res) =>
   res.json({ success: true, user: req.user }),
 );
 exports.updateProfile = catchAsyncErrors(async (req, res, next) => {
-  const updates = { name: req.body.name, email: req.user.email };
+  const allowedFields = ["name"];
+  const unexpectedFields = Object.keys(req.body).filter(
+    (field) => !allowedFields.includes(field),
+  );
+  const errors = {};
+  if (unexpectedFields.length)
+    unexpectedFields.forEach((field) => {
+      errors[field] = `${field} cannot be updated here`;
+    });
+  if (typeof req.body.name !== "string" || !req.body.name.trim())
+    errors.name = "Name is required";
+  else if (req.body.name.trim().length < 2)
+    errors.name = "Name must be at least 2 characters";
+  else if (req.body.name.trim().length > 80)
+    errors.name = "Name must be at most 80 characters";
+  const imageErrors = validateImages(req.file ? [req.file] : [], {
+    maxCount: 1,
+    field: "avatar",
+  });
+  Object.assign(errors, imageErrors);
+  if (Object.keys(errors).length) throw validationError(errors);
+  const updates = { name: req.body.name.trim() };
   if (req.file) {
     const image = await uploadBuffer(req.file.buffer);
     updates.avatar = { public_id: image.public_id, url: image.secure_url };
